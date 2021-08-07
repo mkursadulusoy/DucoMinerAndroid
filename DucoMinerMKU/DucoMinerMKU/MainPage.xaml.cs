@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Android.App;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -10,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Xamarin.Forms;
+using Xamarin.Forms.PlatformConfiguration;
 
 namespace DucoMinerMKU
 {
@@ -27,11 +30,35 @@ namespace DucoMinerMKU
         {
             InitializeComponent();
 
+            
+
+        }
+        public class Employee
+        {
+            public string DisplayName { get; set; }
         }
 
-      
-        void Handle_Clicked(object sender, System.EventArgs e)
-        {
+        ObservableCollection<Employee> employees = new ObservableCollection<Employee>();
+        public ObservableCollection<Employee> Employees { get { return employees; } }
+
+
+        Task yaziYaz(String gelenyazi) {
+
+            return Task.Run(() =>
+            {
+                employees.Add(new Employee { DisplayName = gelenyazi });
+            });
+
+
+            
+
+
+        }
+
+
+        public async void Handle_Clicked(object sender, System.EventArgs e)
+        {  EmployeeView.ItemsSource = employees;
+            string szReceived = "";
             Stopwatch stopWatch = new Stopwatch();
             altyazi.Text = "server.duinocoin.com";
             string serverip = "server.duinocoin.com";
@@ -45,50 +72,55 @@ namespace DucoMinerMKU
             Socket s = new Socket(AddressFamily.InterNetwork,
            SocketType.Stream,
            ProtocolType.Tcp);
-            altyazi.Text = "Sunucuya bağlantı sağlanıyor.";
+            await yaziYaz("Sunucuya bağlantı sağlanıyor.");
+            //altyazi.Text = "Sunucuya bağlantı sağlanıyor.";
             s.Connect(serverip, serverport);
-            altyazi.Text = "Bağlantı Sağlandı";
+            await yaziYaz("Bağlantı Sağlandı");
+            //altyazi.Text = "Bağlantı Sağlandı";
 
-            while (true)
+
+
+
+            //for (int i=0;i<2;i++)
+            while(true)
             {
                 byte[] b = new byte[90];
                 int k = s.Receive(b);
-                string szReceived = Encoding.ASCII.GetString(b, 0, k);
-                Console.Write("The answer from server:");
-                Console.WriteLine(Convert.ToString(szReceived));
+                szReceived = Encoding.ASCII.GetString(b, 0, k);
+                //Console.Write("The answer from server:");
+                await yaziYaz(szReceived);
+                //altyazi.Text = Convert.ToString(szReceived);
 
                 if (szReceived.Length > 0)
                 {
                     if (Convert.ToString(szReceived[0]) == "2")
                     {
-                        Console.Write("Current Server Version:");
-                        Console.WriteLine(szReceived);
+
+                        await yaziYaz("Current Server Version:" + szReceived);
                         byte[] byData = System.Text.Encoding.ASCII.GetBytes("JOB," + nameValue + ",LOW");
-                        Console.WriteLine(byData);
                         s.Send(byData);
 
 
                     }
                     else if (szReceived.Substring(0, 4) == "GOOD")
                     {
-                        Console.WriteLine("İş Doğru Şekilde Teslim Edildi");
-                        Console.WriteLine("Yeni iş İsteniyor");
+                        await yaziYaz("İş Doğru Şekilde Teslim Edildi");
+                        await yaziYaz("Yeni iş İsteniyor");
                         byte[] byData = System.Text.Encoding.ASCII.GetBytes("JOB," + nameValue + ",LOW");
                         s.Send(byData);
 
                     }
                     else if (szReceived.Substring(0, 3) == "BAD")
                     {
-                        Console.WriteLine("İş Doğru Şekilde Teslim Edilemedi");
-                        Console.WriteLine("Yeni iş İsteniyor");
+                        await yaziYaz("İş Doğru Şekilde Teslim Edilemedi");
+                        await yaziYaz("Yeni iş İsteniyor");
                         byte[] byData = System.Text.Encoding.ASCII.GetBytes("JOB," + nameValue + ",LOW");
                         s.Send(byData);
 
                     }
                     else
                     {
-                        Console.WriteLine("Yeni İş Kabul Edildi");
-                        Console.WriteLine(szReceived);
+                        await yaziYaz("Yeni İş Kabul Edildi");
                         //işi parçalara ayırıp zorluğu seçiyoruz
                         string[] is_parcalari = szReceived.Split(',');
                         int difficulty = Convert.ToInt32(is_parcalari[2]);
@@ -106,16 +138,15 @@ namespace DucoMinerMKU
 
                             if (is_parcalari[1] == shash)
                             {
-                                Console.WriteLine("Hash Çözüldü");
+                                await yaziYaz("Hash Çözüldü");
                                 stopWatch.Stop();
                                 decimal zaman = stopWatch.ElapsedMilliseconds / 1000;
                                 if (zaman == 0) zaman = 0.00000000000000000001M;
                                 var calchashrate = decimal.Round((result / zaman), 2, MidpointRounding.AwayFromZero);
-                                Console.Write("Yapılan işe ait Hash değeri");
-                                Console.WriteLine(calchashrate);
-                                Console.WriteLine("Cevap sunucuya gönderiliyor.");
+                                await yaziYaz("Yapılan işe ait Hash değeri");
+                                await yaziYaz(Convert.ToString(calchashrate));
+                                await yaziYaz("Cevap sunucuya gönderiliyor.");
                                 byte[] byData = System.Text.Encoding.ASCII.GetBytes(result + "," + calchashrate + ",C# Duino Miner by mkursadulusoy," + "C# Miner");
-                                Console.WriteLine(byData);
                                 s.Send(byData);
 
                                 break;
@@ -127,16 +158,19 @@ namespace DucoMinerMKU
 
 
                     }
+                       
+                    }
 
-                }
-                else
-                {
-                    Console.WriteLine("Düzgün cevap alınamadı. Tekrar deneniyor.");
+
+                    else
+                             {
+                    await yaziYaz("Düzgün cevap alınamadı. Tekrar deneniyor.");
+
                 }
 
 
             }
 
-        }
+            }
     }
 }
